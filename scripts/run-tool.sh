@@ -57,11 +57,23 @@ run() {
     if [[ -z "$tool_data" ]]; then
         die "error: no JSON data"
     fi
+    # echo "before process" >> "C:/Logs/tmp.log"
+    echo "$tool_data" >> "C:/Logs/tmp.log"
+    # echo "after process" >> "C:/Logs/tmp.log"
+    tool_data=$(echo -e "$tool_data" | awk '{
+        gsub(/\r/, "");           # 删除回车符
+        line = $0;
+        gsub(/\\n/, "||NEWLINE||", line);  # 将字段内的换行符替换为占位符
+        gsub(/\n/, "", line);     # 删除所有实际换行符
+        gsub(/\|\|NEWLINE\|\|/, "\\\\n", line);  # 恢复字段内的换行符
+        printf "%s", line         # 输出处理后的内容（无换行符）
+    }')
+    # echo "$tool_data" >> "C:/Logs/tmp.log"
 
     if [[ "$OS" == "Windows_NT" ]]; then
         set -o igncr
         tool_path="$(cygpath -w "$tool_path")"
-        tool_data="$(echo "$tool_data" | sed 's/\\/\\\\/g')"
+        # tool_data="$(echo "$tool_data" | sed 's/\\/\\\\/g')"
     fi
 
     jq_script="$(cat <<-'EOF'
@@ -83,6 +95,9 @@ def to_args:
 [ to_args ] | join(" ")
 EOF
 )"
+
+    # echo "before jq_script" >> "C:/Logs/tmp.log"
+    # echo "$tool_data" >> "C:/Logs/tmp.log"
     args="$(echo "$tool_data" | jq -r "$jq_script" 2>/dev/null)" || {
         die "error: invalid JSON data"
     }
